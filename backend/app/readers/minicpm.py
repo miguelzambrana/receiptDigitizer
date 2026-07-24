@@ -25,12 +25,24 @@ class MiniCPMReader:
         b64 = base64.b64encode(image_bytes).decode()
         payload = {"model": self.model, "prompt": PROMPT, "images": [b64],
                    "stream": False, "format": "json",
-                   "options": {"temperature": 0, "num_predict": 2500, "num_ctx": 8192}}
+                   "options": {"temperature": 0,
+                               "num_predict": settings.reader_num_predict,
+                               "num_ctx": settings.reader_num_ctx}}
         try:
             with httpx.Client(timeout=240) as c:
                 r = c.post(f"{self.ollama_url}/api/generate", json=payload)
                 r.raise_for_status()
-                raw = r.json()["response"]
+                body = r.json()
+                # If generation hit the output-token cap the JSON is truncated
+                # (invalid); surface a clear, actionable error rather than a
+                # cryptic "Expecting value" parse failure.
+                if body.get("done_reason") == "length":
+                    raise ReaderError(
+                        "The receipt is too long to read in one pass — the model's "
+                        "output was truncated. Try cropping tighter to just the "
+                        "items, or raise READER_NUM_PREDICT."
+                    )
+                raw = body["response"]
                 data = json.loads(raw)
                 return self._to_receipt(data)
         except (httpx.HTTPError, KeyError, json.JSONDecodeError, AttributeError, TypeError) as e:

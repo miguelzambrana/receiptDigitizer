@@ -53,3 +53,21 @@ def test_minicpm_raises_on_items_as_strings(monkeypatch):
     monkeypatch.setattr(httpx.Client, "post", fake_post)
     with pytest.raises(ReaderError):
         MiniCPMReader().extract(b"img")
+
+def test_minicpm_raises_clear_error_on_truncated_output(monkeypatch):
+    # Ollama reports done_reason "length" when it hit num_predict: the JSON is
+    # cut off mid-object. We should surface a clear message, not a cryptic parse
+    # error, and never attempt to parse the truncated body.
+    request = httpx.Request("POST", "http://localhost:11434/api/generate")
+    def fake_post(self, url, **kw):
+        return httpx.Response(
+            200,
+            json={"response": '{"store":"Lidl","items":[{"name":"AGUA","total_pri',
+                  "done_reason": "length"},
+            request=request,
+        )
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+    with pytest.raises(ReaderError) as exc:
+        MiniCPMReader().extract(b"img")
+    msg = str(exc.value).lower()
+    assert "truncated" in msg or "too long" in msg
