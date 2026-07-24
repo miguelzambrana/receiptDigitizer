@@ -1,9 +1,9 @@
 import type { Receipt, RawExtraction } from "../api/types";
 
 export interface PollReceiptOptions {
-  /** Delay between polls while status stays "processing". Default 2000ms. */
+  /** Delay between polls while status stays "processing". Default 3000ms. */
   intervalMs?: number;
-  /** Hard cap on attempts so a stuck receipt can't be polled forever. Default 30. */
+  /** Hard cap on attempts so a stuck receipt can't be polled forever. Default 120 (~6 min). */
   maxAttempts?: number;
   /** Lets the caller cancel an in-flight poll (e.g. on component unmount). */
   signal?: AbortSignal;
@@ -30,8 +30,11 @@ export class ReceiptPollTimeoutError extends Error {
   }
 }
 
-const DEFAULT_INTERVAL_MS = 2000;
-const DEFAULT_MAX_ATTEMPTS = 30;
+const DEFAULT_INTERVAL_MS = 3000;
+// ~6 minutes total (120 × 3s). The backend reader allows up to ~240s for a
+// local VLM on a long receipt, so the client must wait comfortably past that
+// before declaring a timeout.
+const DEFAULT_MAX_ATTEMPTS = 120;
 
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -57,9 +60,9 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
  * once status is "ready", and rejects with a `ReceiptProcessingFailedError`
  * (carrying the backend's error message) once status is "failed".
  *
- * Bounded by `maxAttempts` (default 30, ~1 minute at the default 2s interval)
- * so a receipt stuck in "processing" can never be polled forever; once
- * exhausted it rejects with `ReceiptPollTimeoutError`.
+ * Bounded by `maxAttempts` (default 120, ~6 minutes at the default 3s
+ * interval) so a receipt stuck in "processing" can never be polled forever;
+ * once exhausted it rejects with `ReceiptPollTimeoutError`.
  */
 export async function pollReceipt(
   getReceiptFn: (id: number | string) => Promise<Receipt>,
