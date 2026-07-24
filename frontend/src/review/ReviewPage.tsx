@@ -36,9 +36,11 @@ export default function ReviewPage() {
   useEffect(() => {
     if (!id) return;
     const controller = new AbortController();
+    let cancelled = false;
 
     pollReceipt(getReceipt, id, { signal: controller.signal })
       .then((raw) => {
+        if (cancelled) return;
         const { reconciliation: recon, purchased_at: _purchasedAt, ...rest } =
           raw;
         setDraft(rest);
@@ -46,6 +48,7 @@ export default function ReviewPage() {
         setState({ phase: "ready" });
       })
       .catch((err) => {
+        if (cancelled) return;
         if (err instanceof ReceiptPollAbortedError) return;
         setState({
           phase: "failed",
@@ -56,7 +59,10 @@ export default function ReviewPage() {
         });
       });
 
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [id]);
 
   function updateField<K extends keyof ReceiptData>(
@@ -139,8 +145,9 @@ export default function ReviewPage() {
           className="reconciliation-banner reconciliation-mismatch"
           role="alert"
         >
-          Items sum {reconciliation.items_sum} vs total {draft.total ?? "—"}{" "}
-          (Δ {reconciliation.delta}) — please review
+          Items sum {reconciliation.items_sum} vs total{" "}
+          {reconciliation.expected_total ?? "—"} (Δ{" "}
+          {reconciliation.delta ?? "—"}) — please review
         </p>
       )}
 

@@ -79,6 +79,10 @@ export async function pollReceipt(
 
     const receipt = await getReceiptFn(id);
 
+    if (signal?.aborted) {
+      throw new ReceiptPollAbortedError();
+    }
+
     if (receipt.status === "failed") {
       const extraction = receipt.raw_extraction;
       const message =

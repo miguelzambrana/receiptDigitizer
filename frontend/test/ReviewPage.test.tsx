@@ -188,6 +188,33 @@ describe("ReviewPage", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("keeps the mismatch banner on the frozen reconciliation snapshot after editing the live total", async () => {
+    vi.mocked(client.getReceipt).mockResolvedValue(
+      makeReadyReceipt({
+        reconciliation: {
+          items_sum: 8,
+          expected_total: 10,
+          delta: -2,
+          matches: false,
+        },
+      }),
+    );
+
+    renderReviewPage();
+
+    await screen.findByDisplayValue("Milk");
+
+    const totalInput = screen.getByLabelText("Total");
+    fireEvent.change(totalInput, { target: { value: "8" } });
+    expect(totalInput).toHaveValue(8);
+
+    // The banner must still pair items_sum/expected_total/delta as the
+    // frozen snapshot the backend computed, not the live-edited draft.total.
+    const banner = screen.getByText(/items sum 8 vs total 10/i);
+    expect(banner).toBeInTheDocument();
+    expect(banner).toHaveTextContent(/Δ -2/);
+  });
+
   it("shows the error and a retry link when status is failed", async () => {
     vi.mocked(client.getReceipt).mockResolvedValue({
       id: 1,

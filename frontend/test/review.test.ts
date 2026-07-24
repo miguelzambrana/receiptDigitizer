@@ -150,4 +150,34 @@ describe("pollReceipt", () => {
     await vi.advanceTimersByTimeAsync(5000);
     expect(getReceiptMock).toHaveBeenCalledTimes(1);
   });
+
+  it("does not settle to a ready result when aborted while a request is in flight", async () => {
+    let resolveFetch!: (receipt: Receipt) => void;
+    const getReceiptMock = vi.fn().mockImplementation(
+      () =>
+        new Promise<Receipt>((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+    const controller = new AbortController();
+
+    const promise = pollReceipt(getReceiptMock, 1, {
+      intervalMs: 1000,
+      signal: controller.signal,
+    });
+    const assertion = expect(promise).rejects.toThrow(/cancel/i);
+
+    // let the in-flight fetch start
+    await vi.advanceTimersByTimeAsync(0);
+    expect(getReceiptMock).toHaveBeenCalledTimes(1);
+
+    // abort while the fetch is still pending, then let it resolve to "ready"
+    controller.abort();
+    resolveFetch(
+      makeReceipt({ status: "ready", raw_extraction: readyExtraction }),
+    );
+
+    // must reject (abort wins), never resolve with the stale "ready" result
+    await assertion;
+  });
 });
