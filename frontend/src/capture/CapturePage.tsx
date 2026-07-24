@@ -1,6 +1,6 @@
 import {
   useCallback,
-  useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -65,7 +65,18 @@ export default function CapturePage() {
   // orientation. jsdom (and any environment without a real canvas 2D
   // backend) returns a null context here; drawing is simply skipped in
   // that case, but the crop-box reset still runs.
-  useEffect(() => {
+  //
+  // The crop box lives entirely in DISPLAY (CSS pixel) space -- the same
+  // space the overlay div is rendered in and drag/resize clamp against
+  // (getDisplaySize) -- and is converted to the canvas's intrinsic pixel
+  // space exactly once, at Extract time (see handleExtract). So the default
+  // must be seeded from the on-screen display size, not the intrinsic
+  // canvasSize; otherwise the crop box ends up oversized on screen,
+  // undraggable, and doubly-scaled on export. This runs in a layout effect,
+  // synchronously after the canvas.width/height (and therefore its on-screen
+  // box) are updated, so getDisplaySize sees the up-to-date layout for this
+  // image/rotation before the browser paints.
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     const img = imageRef.current;
     if (!canvas || !img || !canvasSize) return;
@@ -83,7 +94,7 @@ export default function CapturePage() {
       ctx.restore();
     }
 
-    setCrop(defaultCropRect(canvasSize));
+    setCrop(defaultCropRect(getDisplaySize(canvas)));
   }, [canvasSize, rotationDeg]);
 
   const resetForNewImage = useCallback((size: Size) => {
