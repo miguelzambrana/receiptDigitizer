@@ -112,26 +112,32 @@ export default function PriceHistory() {
       )}
 
       {state.phase === "loaded" && observations.length > 0 && (
-        <>
+        <section className="card">
           <svg
             role="img"
             aria-label={`Price over time, ${observations.length} observation${
               observations.length === 1 ? "" : "s"
             }`}
             viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-            style={{ width: "100%", maxWidth: CHART_WIDTH, height: "auto" }}
+            style={{ width: "100%", height: "auto" }}
           >
             <title>Price over time</title>
             {points.length > 1 && (
               <polyline
                 points={linePoints}
                 fill="none"
-                stroke="#2563eb"
+                stroke="var(--color-primary)"
                 strokeWidth={2}
               />
             )}
             {points.map((point, index) => (
-              <circle key={index} cx={point.x} cy={point.y} r={4} fill="#2563eb" />
+              <circle
+                key={index}
+                cx={point.x}
+                cy={point.y}
+                r={4}
+                fill="var(--color-primary)"
+              />
             ))}
           </svg>
 
@@ -139,23 +145,25 @@ export default function PriceHistory() {
             <table className="price-history-table">
               <thead>
                 <tr>
-                  <th>Price</th>
+                  <th className="col-numeric">Price</th>
                   <th>Observed at</th>
-                  <th>Store</th>
+                  <th className="col-numeric">Store</th>
                 </tr>
               </thead>
               <tbody>
                 {observations.map((observation, index) => (
                   <tr key={index}>
-                    <td>{formatPrice(observation.price, observation.currency)}</td>
+                    <td className="col-numeric">
+                      {formatPrice(observation.price, observation.currency)}
+                    </td>
                     <td>{formatObservedAt(observation.observed_at)}</td>
-                    <td>{observation.store_id ?? "—"}</td>
+                    <td className="col-numeric">{observation.store_id ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </>
+        </section>
       )}
     </div>
   );

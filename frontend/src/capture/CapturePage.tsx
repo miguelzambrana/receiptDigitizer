@@ -231,7 +231,7 @@ export default function CapturePage() {
       </label>
 
       {naturalSize && canvasSize && (
-        <>
+        <section className="card" style={{ marginTop: 16 }}>
           <div
             className="capture-stage"
             ref={stageRef}
@@ -239,7 +239,6 @@ export default function CapturePage() {
               position: "relative",
               display: "inline-block",
               maxWidth: "100%",
-              marginTop: 12,
             }}
           >
             <canvas
@@ -272,7 +271,7 @@ export default function CapturePage() {
             )}
           </div>
 
-          <div className="rotation-controls" style={{ marginTop: 12 }}>
+          <div className="rotation-controls" style={{ marginTop: 16 }}>
             <label>
               Rotation: {rotationDeg}°
               <input
@@ -301,7 +300,7 @@ export default function CapturePage() {
           >
             {uploading ? "Uploading…" : "Extract"}
           </button>
-        </>
+        </section>
       )}
 
       {!naturalSize && <ErrorBanner message={error} />}

@@ -166,53 +166,79 @@ describe("ReviewPage", () => {
     expect(dataArg.items[0].raw_name).toBe("Bread");
   });
 
-  it("shows an amber mismatch banner when reconciliation.matches is false", async () => {
-    vi.mocked(client.getReceipt).mockResolvedValue(
-      makeReadyReceipt({
-        reconciliation: {
-          items_sum: 8,
-          expected_total: 10,
-          delta: -2,
-          matches: false,
-        },
-      }),
-    );
+  it("shows a live items total that updates as an item's total price is edited", async () => {
+    vi.mocked(client.getReceipt).mockResolvedValue(makeReadyReceipt());
 
     renderReviewPage();
 
-    const banner = await screen.findByText(/items sum 8 vs total 10/i);
-    expect(banner).toBeInTheDocument();
-    expect(banner).toHaveTextContent(/Δ -2/);
+    await screen.findByDisplayValue("Milk");
+    expect(screen.getByText(/line items total: 10 USD/i)).toBeInTheDocument();
+
+    const milkTotalPrice = screen.getByLabelText("Item 1 total price");
+    fireEvent.change(milkTotalPrice, { target: { value: "5" } });
+
+    // Milk 5 + Bread 7 = 12, recomputed live from the edited items.
+    expect(screen.getByText(/line items total: 12 USD/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/line items sum to 12 but the total says 10/i),
+    ).toBeInTheDocument();
     expect(
       screen.queryByText(/items match the total/i),
     ).not.toBeInTheDocument();
   });
 
-  it("keeps the mismatch banner on the frozen reconciliation snapshot after editing the live total", async () => {
+  it("shows an info banner with a 'Use items total' button when no total was detected, and applies it", async () => {
     vi.mocked(client.getReceipt).mockResolvedValue(
-      makeReadyReceipt({
-        reconciliation: {
-          items_sum: 8,
-          expected_total: 10,
-          delta: -2,
-          matches: false,
-        },
-      }),
+      makeReadyReceipt({ total: null }),
     );
 
     renderReviewPage();
 
     await screen.findByDisplayValue("Milk");
 
-    const totalInput = screen.getByLabelText("Total");
-    fireEvent.change(totalInput, { target: { value: "8" } });
-    expect(totalInput).toHaveValue(8);
+    expect(
+      screen.getByText(/no total detected on the receipt/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/line items add up to 10 USD/i)).toBeInTheDocument();
 
-    // The banner must still pair items_sum/expected_total/delta as the
-    // frozen snapshot the backend computed, not the live-edited draft.total.
-    const banner = screen.getByText(/items sum 8 vs total 10/i);
-    expect(banner).toBeInTheDocument();
-    expect(banner).toHaveTextContent(/Δ -2/);
+    const totalInput = screen.getByLabelText("Total");
+    expect(totalInput).toHaveValue(null);
+
+    fireEvent.click(screen.getByRole("button", { name: /use items total/i }));
+
+    expect(totalInput).toHaveValue(10);
+    expect(
+      screen.getByText(/items match the total \(10 USD\)/i),
+    ).toBeInTheDocument();
+  });
+
+  it("flips the banner from mismatch to match when the total is edited to equal the live items sum", async () => {
+    vi.mocked(client.getReceipt).mockResolvedValue(
+      makeReadyReceipt({ total: 12 }),
+    );
+
+    renderReviewPage();
+
+    await screen.findByDisplayValue("Milk");
+
+    // Items still sum to 10 (3 + 7), total says 12 -> mismatch, Δ -2.
+    expect(
+      screen.getByText(/line items sum to 10 but the total says 12/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Δ -2/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /use items total/i }),
+    ).toBeInTheDocument();
+
+    const totalInput = screen.getByLabelText("Total");
+    fireEvent.change(totalInput, { target: { value: "10" } });
+
+    expect(
+      screen.getByText(/items match the total \(10 USD\)/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /use items total/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows the error and a retry link when status is failed", async () => {

@@ -54,35 +54,39 @@ export default function ProductsPage() {
 
       <ErrorBanner message={state.phase === "error" ? state.message : null} />
 
-      {state.phase === "loaded" && products.length === 0 && (
-        <p>No products yet — scan a receipt</p>
-      )}
-
-      {state.phase === "loaded" && products.length > 0 && (
-        <div className="table-scroll">
-          <table className="products-table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Last price</th>
-                <th>Observations</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((product) => (
-                <tr key={product.id}>
-                  <td>
-                    <Link to={`/products/${product.id}`}>
-                      {product.display_name}
-                    </Link>
-                  </td>
-                  <td>{formatPrice(product.last_price, product.currency)}</td>
-                  <td>{product.observations}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {state.phase === "loaded" && (
+        <section className="card">
+          {products.length === 0 ? (
+            <p>No products yet — scan a receipt</p>
+          ) : (
+            <div className="table-scroll">
+              <table className="products-table">
+                <thead>
+                  <tr>
+                    <th className="col-name">Product</th>
+                    <th className="col-numeric">Last price</th>
+                    <th className="col-numeric">Observations</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((product) => (
+                    <tr key={product.id}>
+                      <td className="col-name">
+                        <Link to={`/products/${product.id}`}>
+                          {product.display_name}
+                        </Link>
+                      </td>
+                      <td className="col-numeric">
+                        {formatPrice(product.last_price, product.currency)}
+                      </td>
+                      <td className="col-numeric">{product.observations}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       )}
     </div>
   );
