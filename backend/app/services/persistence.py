@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 from app.models import Receipt, ReceiptItem, Store, PriceObservation
 from app.schemas import ReceiptData
@@ -23,7 +23,14 @@ def confirm_receipt(db: Session, receipt_id: int, corrected: ReceiptData) -> Rec
     receipt = db.get(Receipt, receipt_id)
     if receipt is None:
         raise ValueError("receipt not found")
-    for old in list(receipt.items):
+    # Query old items directly (not via receipt.items) so this sees the current
+    # DB state even if the relationship collection was already loaded/cached
+    # earlier in this session (e.g. a prior confirm_receipt call).
+    old_items = db.execute(select(ReceiptItem).where(ReceiptItem.receipt_id == receipt.id)).scalars().all()
+    old_ids = [i.id for i in old_items]
+    if old_ids:
+        db.execute(delete(PriceObservation).where(PriceObservation.receipt_item_id.in_(old_ids)))
+    for old in old_items:
         db.delete(old)
     db.flush()
 
