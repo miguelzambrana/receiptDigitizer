@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-    database_url: str = "postgresql+psycopg://receipts:receipts@localhost:5432/receipts"
+    database_url: str = "sqlite:///./data/receipts.db"
     ollama_url: str = "http://localhost:11434"
     reader_engine: str = "minicpm"
     reader_model: str = "minicpm-v"
