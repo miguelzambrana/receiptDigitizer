@@ -10,19 +10,25 @@ from app import models  # noqa: F401  (register models; avoids rebinding `app` a
 def _png():
     buf = io.BytesIO(); Image.new("RGB", (40, 40), "white").save(buf, "PNG"); return buf.getvalue()
 
+def _auth(c, email="dev@example.com", password="pw12345"):
+    c.post("/auth/register", json={"email": email, "password": password})
+    tok = c.post("/auth/login", json={"email": email, "password": password}).json()["access_token"]
+    return {"Authorization": f"Bearer {tok}"}
+
 def test_products_and_prices(monkeypatch, tmp_path):
     from app.config import settings
     monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
     monkeypatch.setattr(settings, "reader_engine", "fake")
     Base.metadata.create_all(bind=engine)
     c = TestClient(app)
-    rid = c.post("/receipts", files={"file": ("t.png", _png(), "image/png")}).json()["id"]
+    headers = _auth(c)
+    rid = c.post("/receipts", files={"file": ("t.png", _png(), "image/png")}, headers=headers).json()["id"]
     c.put(f"/receipts/{rid}", json={"store": "Carrefour", "currency": "EUR", "date_text": "21/07/26",
-          "total": 13.49, "items": [{"raw_name": "CARNE VIEIRA 320 G", "total_price": 13.49}]})
-    prods = c.get("/products").json()
+          "total": 13.49, "items": [{"raw_name": "CARNE VIEIRA 320 G", "total_price": 13.49}]}, headers=headers)
+    prods = c.get("/products", headers=headers).json()
     assert len(prods) == 1 and prods[0]["display_name"].startswith("CARNE")
     pid = prods[0]["id"]
-    prices = c.get(f"/products/{pid}/prices").json()
+    prices = c.get(f"/products/{pid}/prices", headers=headers).json()
     assert prices[0]["price"] == 13.49
     Base.metadata.drop_all(bind=engine)
 
@@ -32,11 +38,11 @@ def test_products_currency_and_last_price_from_same_latest_observation(monkeypat
     monkeypatch.setattr(settings, "reader_engine", "fake")
     Base.metadata.create_all(bind=engine)
     c = TestClient(app)
-    c.get("/products")  # trigger dev-user creation via get_current_user
+    headers = _auth(c, email="prices@example.com")
 
     session = SessionLocal()
     try:
-        user = session.execute(select(models.User).where(models.User.email == "dev@local")).scalar_one()
+        user = session.execute(select(models.User).where(models.User.email == "prices@example.com")).scalar_one()
         product = models.Product(normalized_name="MULTI CURRENCY PRODUCT", display_name="Multi Currency Product")
         session.add(product); session.commit(); session.refresh(product)
 
@@ -61,7 +67,7 @@ def test_products_currency_and_last_price_from_same_latest_observation(monkeypat
     finally:
         session.close()
 
-    prods = c.get("/products").json()
+    prods = c.get("/products", headers=headers).json()
     match = [p for p in prods if p["id"] == product_id]
     assert len(match) == 1
     p = match[0]
@@ -69,7 +75,7 @@ def test_products_currency_and_last_price_from_same_latest_observation(monkeypat
     assert p["currency"] == "EUR"
     assert p["observations"] == 2
 
-    prices = c.get(f"/products/{product_id}/prices").json()
+    prices = c.get(f"/products/{product_id}/prices", headers=headers).json()
     assert len(prices) == 2
     assert prices[0]["price"] == 9.99
     assert prices[1]["price"] == 5.00

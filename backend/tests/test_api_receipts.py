@@ -12,22 +12,28 @@ def _client():
 def _png_bytes():
     buf = io.BytesIO(); Image.new("RGB", (50, 50), "white").save(buf, format="PNG"); return buf.getvalue()
 
+def _auth(c, email="dev@example.com", password="pw12345"):
+    c.post("/auth/register", json={"email": email, "password": password})
+    tok = c.post("/auth/login", json={"email": email, "password": password}).json()["access_token"]
+    return {"Authorization": f"Bearer {tok}"}
+
 def test_upload_confirm_and_list(monkeypatch, tmp_path):
     from app.config import settings
     monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
     monkeypatch.setattr(settings, "reader_engine", "fake")
     c = _client()
-    r = c.post("/receipts", files={"file": ("t.png", _png_bytes(), "image/png")})
+    headers = _auth(c)
+    r = c.post("/receipts", files={"file": ("t.png", _png_bytes(), "image/png")}, headers=headers)
     assert r.status_code == 202
     rid = r.json()["id"]
-    got = c.get(f"/receipts/{rid}")
+    got = c.get(f"/receipts/{rid}", headers=headers)
     assert got.status_code == 200
     assert got.json()["status"] in ("ready", "processing")
     body = {"store": "Carrefour", "currency": "EUR", "date_text": "21/07/26", "total": 13.49,
             "items": [{"raw_name": "CARNE VIEIRA 320 G", "total_price": 13.49}]}
-    put = c.put(f"/receipts/{rid}", json=body)
+    put = c.put(f"/receipts/{rid}", json=body, headers=headers)
     assert put.status_code == 200 and put.json()["status"] == "confirmed"
-    lst = c.get("/receipts")
+    lst = c.get("/receipts", headers=headers)
     assert any(x["id"] == rid for x in lst.json())
     Base.metadata.drop_all(bind=engine)
 
@@ -50,23 +56,23 @@ def test_upload_unexpected_reader_error_marks_receipt_failed(monkeypatch, tmp_pa
     monkeypatch.setattr(extraction_module, "get_reader", lambda engine=None: BoomReader())
 
     c = _client()
-    r = c.post("/receipts", files={"file": ("t.png", _png_bytes(), "image/png")})
+    headers = _auth(c)
+    r = c.post("/receipts", files={"file": ("t.png", _png_bytes(), "image/png")}, headers=headers)
     assert r.status_code == 202
     rid = r.json()["id"]
 
-    got = c.get(f"/receipts/{rid}")
+    got = c.get(f"/receipts/{rid}", headers=headers)
     assert got.status_code == 200
     assert got.json()["status"] == "failed"
     assert "error" in got.json()["raw_extraction"]
     Base.metadata.drop_all(bind=engine)
 
 def test_get_and_confirm_reject_non_owner(monkeypatch, tmp_path):
-    # The stub auth (app.deps.get_current_user) always authenticates as `dev@local`.
+    # The "current user" is now whoever is authenticated via the bearer token (user A).
     # Both GET /receipts/{id} and PUT /receipts/{id} guard with
-    # `if r is None or r.user_id != user.id: raise HTTPException(404)`, but no existing
-    # test ever creates a receipt owned by a *different* user, so the `!= user.id`
-    # branch has never actually been exercised. This proves it 404s rather than
-    # leaking another user's receipt.
+    # `if r is None or r.user_id != user.id: raise HTTPException(404)`. This creates a
+    # receipt owned by a DIFFERENT user (inserted directly via SessionLocal, bypassing
+    # the API) and proves A's request 404s rather than leaking another user's receipt.
     from app.config import settings
     from app.db import SessionLocal
     from app.models import User, Receipt
@@ -74,6 +80,7 @@ def test_get_and_confirm_reject_non_owner(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
     monkeypatch.setattr(settings, "reader_engine", "fake")
     c = _client()
+    headers = _auth(c, email="a@example.com")
 
     db = SessionLocal()
     try:
@@ -85,12 +92,12 @@ def test_get_and_confirm_reject_non_owner(monkeypatch, tmp_path):
     finally:
         db.close()
 
-    got = c.get(f"/receipts/{other_receipt_id}")
+    got = c.get(f"/receipts/{other_receipt_id}", headers=headers)
     assert got.status_code == 404
 
     body = {"store": "Carrefour", "currency": "EUR", "date_text": "21/07/26", "total": 13.49,
             "items": [{"raw_name": "CARNE VIEIRA 320 G", "total_price": 13.49}]}
-    put = c.put(f"/receipts/{other_receipt_id}", json=body)
+    put = c.put(f"/receipts/{other_receipt_id}", json=body, headers=headers)
     assert put.status_code == 404
 
     Base.metadata.drop_all(bind=engine)
