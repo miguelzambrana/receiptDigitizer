@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -9,6 +10,7 @@ import {
 import {
   getToken,
   login as apiLogin,
+  onTokenChange,
   register as apiRegister,
   setToken as apiSetToken,
 } from "../api/client";
@@ -24,6 +26,13 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(() => getToken());
+
+  useEffect(() => {
+    const unsubscribe = onTokenChange(() => {
+      setTokenState(getToken());
+    });
+    return unsubscribe;
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await apiLogin(email, password);

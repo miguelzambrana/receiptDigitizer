@@ -23,18 +23,55 @@ export class UnauthorizedError extends Error {
 let token: string | null =
   typeof localStorage !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
 
+let listeners: Array<() => void> = [];
+
+export function onTokenChange(fn: () => void): () => void {
+  listeners.push(fn);
+  return () => {
+    listeners = listeners.filter((l) => l !== fn);
+  };
+}
+
 export function setToken(t: string | null): void {
   token = t;
-  if (typeof localStorage === "undefined") return;
-  if (t) {
-    localStorage.setItem(TOKEN_KEY, t);
-  } else {
-    localStorage.removeItem(TOKEN_KEY);
+  if (typeof localStorage !== "undefined") {
+    if (t) {
+      localStorage.setItem(TOKEN_KEY, t);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+    }
   }
+  listeners.forEach((fn) => fn());
 }
 
 export function getToken(): string | null {
   return token;
+}
+
+interface AuthFetchInit {
+  method: string;
+  headers?: Record<string, string>;
+  body?: BodyInit;
+}
+
+async function authFetch(path: string, init: AuthFetchInit): Promise<Response> {
+  const headers: Record<string, string> = { ...init.headers };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: init.method,
+    headers,
+    body: init.body,
+  });
+
+  if (res.status === 401) {
+    setToken(null);
+    throw new UnauthorizedError();
+  }
+
+  return res;
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -42,20 +79,12 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
   }
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await authFetch(path, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-
-  if (res.status === 401) {
-    setToken(null);
-    throw new UnauthorizedError();
-  }
 
   if (!res.ok) {
     let detail = res.statusText;
@@ -96,21 +125,11 @@ export async function uploadReceipt(blob: Blob): Promise<UploadReceiptResponse> 
   const form = new FormData();
   form.append("file", blob, "receipt.jpg");
 
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  const res = await fetch(`${BASE_URL}/receipts`, {
+  const res = await authFetch("/receipts", {
     method: "POST",
-    headers,
     body: form,
   });
 
-  if (res.status === 401) {
-    setToken(null);
-    throw new UnauthorizedError();
-  }
   if (!res.ok) {
     throw new Error(`Upload failed with status ${res.status}`);
   }

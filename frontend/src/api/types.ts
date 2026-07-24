@@ -85,6 +85,6 @@ export interface Product {
 export interface PriceObservation {
   store_id: number | null;
   price: number;
-  currency: string;
+  currency: string | null;
   observed_at: string | null;
 }
