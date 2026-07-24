@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listProducts } from "../api/client";
 import type { Product } from "../api/types";
+import ErrorBanner from "../components/ErrorBanner";
 
 type LoadState =
   | { phase: "loading" }
@@ -51,35 +52,37 @@ export default function ProductsPage() {
         <p role="status">Loading products…</p>
       )}
 
-      {state.phase === "error" && <p role="alert">{state.message}</p>}
+      <ErrorBanner message={state.phase === "error" ? state.message : null} />
 
       {state.phase === "loaded" && products.length === 0 && (
         <p>No products yet — scan a receipt</p>
       )}
 
       {state.phase === "loaded" && products.length > 0 && (
-        <table className="products-table">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Last price</th>
-              <th>Observations</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map((product) => (
-              <tr key={product.id}>
-                <td>
-                  <Link to={`/products/${product.id}`}>
-                    {product.display_name}
-                  </Link>
-                </td>
-                <td>{formatPrice(product.last_price, product.currency)}</td>
-                <td>{product.observations}</td>
+        <div className="table-scroll">
+          <table className="products-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Last price</th>
+                <th>Observations</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {products.map((product) => (
+                <tr key={product.id}>
+                  <td>
+                    <Link to={`/products/${product.id}`}>
+                      {product.display_name}
+                    </Link>
+                  </td>
+                  <td>{formatPrice(product.last_price, product.currency)}</td>
+                  <td>{product.observations}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

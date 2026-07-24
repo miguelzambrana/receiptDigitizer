@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { productPrices } from "../api/client";
 import type { PriceObservation } from "../api/types";
+import ErrorBanner from "../components/ErrorBanner";
 
 type LoadState =
   | { phase: "loading" }
@@ -104,7 +105,7 @@ export default function PriceHistory() {
         <p role="status">Loading price history…</p>
       )}
 
-      {state.phase === "error" && <p role="alert">{state.message}</p>}
+      <ErrorBanner message={state.phase === "error" ? state.message : null} />
 
       {state.phase === "loaded" && observations.length === 0 && (
         <p>No price history yet</p>
@@ -134,24 +135,26 @@ export default function PriceHistory() {
             ))}
           </svg>
 
-          <table className="price-history-table">
-            <thead>
-              <tr>
-                <th>Price</th>
-                <th>Observed at</th>
-                <th>Store</th>
-              </tr>
-            </thead>
-            <tbody>
-              {observations.map((observation, index) => (
-                <tr key={index}>
-                  <td>{formatPrice(observation.price, observation.currency)}</td>
-                  <td>{formatObservedAt(observation.observed_at)}</td>
-                  <td>{observation.store_id ?? "—"}</td>
+          <div className="table-scroll">
+            <table className="price-history-table">
+              <thead>
+                <tr>
+                  <th>Price</th>
+                  <th>Observed at</th>
+                  <th>Store</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {observations.map((observation, index) => (
+                  <tr key={index}>
+                    <td>{formatPrice(observation.price, observation.currency)}</td>
+                    <td>{formatObservedAt(observation.observed_at)}</td>
+                    <td>{observation.store_id ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </div>

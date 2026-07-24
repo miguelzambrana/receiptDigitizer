@@ -14,41 +14,43 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/"
-            element={
-              <RequireAuth>
-                <CapturePage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/review/:id"
-            element={
-              <RequireAuth>
-                <ReviewPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/products"
-            element={
-              <RequireAuth>
-                <ProductsPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/products/:id"
-            element={
-              <RequireAuth>
-                <PriceHistory />
-              </RequireAuth>
-            }
-          />
-        </Routes>
+        <div className="app-container">
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/"
+              element={
+                <RequireAuth>
+                  <CapturePage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/review/:id"
+              element={
+                <RequireAuth>
+                  <ReviewPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/products"
+              element={
+                <RequireAuth>
+                  <ProductsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/products/:id"
+              element={
+                <RequireAuth>
+                  <PriceHistory />
+                </RequireAuth>
+              }
+            />
+          </Routes>
+        </div>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>,

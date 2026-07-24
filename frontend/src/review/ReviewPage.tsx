@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { confirmReceipt, getReceipt } from "../api/client";
 import { pollReceipt, ReceiptPollAbortedError } from "./poll";
 import type { ItemData, ReceiptData, Reconciliation } from "../api/types";
+import ErrorBanner from "../components/ErrorBanner";
 
 type LoadState =
   | { phase: "processing" }
@@ -120,7 +121,7 @@ export default function ReviewPage() {
   if (state.phase === "failed") {
     return (
       <div className="review-page">
-        <p role="alert">{state.message}</p>
+        <ErrorBanner message={state.message} />
         <Link to="/">Try again</Link>
       </div>
     );
@@ -189,18 +190,19 @@ export default function ReviewPage() {
         </label>
       </div>
 
-      <table className="items-table">
-        <thead>
-          <tr>
-            <th>Item</th>
-            <th>Qty</th>
-            <th>Unit price</th>
-            <th>Total price</th>
-            <th>Discount</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
+      <div className="table-scroll">
+        <table className="items-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Qty</th>
+              <th>Unit price</th>
+              <th>Total price</th>
+              <th>Discount</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
           {draft.items.map((item, index) => (
             <tr key={index} data-testid={`item-row-${index}`}>
               <td>
@@ -271,10 +273,11 @@ export default function ReviewPage() {
               </td>
             </tr>
           ))}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
 
-      {submitError && <p role="alert">{submitError}</p>}
+      <ErrorBanner message={submitError} />
 
       <button type="button" onClick={handleConfirm} disabled={submitting}>
         {submitting ? "Confirming…" : "Confirm"}

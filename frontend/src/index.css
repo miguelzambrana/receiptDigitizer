@@ -1,6 +1,57 @@
 :root {
   color-scheme: light dark;
-  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-border: #d9dee6;
+  --color-text: #1f2937;
+  --color-text-muted: #64748b;
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-contrast: #ffffff;
+
+  --color-danger: #b91c1c;
+  --color-danger-bg: #fef2f2;
+  --color-danger-border: #fca5a5;
+
+  --color-success: #166534;
+  --color-success-bg: #f0fdf4;
+  --color-success-border: #86efac;
+
+  --color-warning: #92400e;
+  --color-warning-bg: #fffbeb;
+  --color-warning-border: #fcd34d;
+
+  --radius: 6px;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+
+  font-family: var(--font-sans);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #0f172a;
+    --color-surface: #1a2436;
+    --color-border: #334155;
+    --color-text: #e2e8f0;
+    --color-text-muted: #94a3b8;
+    --color-primary: #60a5fa;
+    --color-primary-hover: #3b82f6;
+    --color-primary-contrast: #0f172a;
+
+    --color-danger: #fca5a5;
+    --color-danger-bg: #3f1414;
+    --color-danger-border: #7f1d1d;
+
+    --color-success: #86efac;
+    --color-success-bg: #0e2f1a;
+    --color-success-border: #166534;
+
+    --color-warning: #fcd34d;
+    --color-warning-bg: #3a2705;
+    --color-warning-border: #92400e;
+  }
 }
 
 * {
@@ -10,6 +61,11 @@
 body {
   margin: 0;
   min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {
@@ -17,5 +73,262 @@ body {
 }
 
 a {
-  color: inherit;
+  color: var(--color-primary);
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0 0 1rem;
+}
+
+/* Desktop-centered, mobile-full-width app shell */
+.app-container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+@media (max-width: 640px) {
+  .app-container {
+    max-width: 100%;
+    padding: 12px;
+  }
+}
+
+/* Buttons */
+button {
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Inputs */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input:not([type]) {
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+input[type="range"] {
+  width: 100%;
+}
+
+label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+label > input,
+label > select {
+  margin-top: 4px;
+  color: var(--color-text);
+}
+
+/* Top nav shown on authed screens */
+.app-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+.app-nav-links {
+  display: flex;
+  gap: 16px;
+}
+
+.app-nav-links a {
+  text-decoration: none;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  padding: 4px 2px;
+  border-bottom: 2px solid transparent;
+}
+
+.app-nav-links a:hover,
+.app-nav-links a.active {
+  color: var(--color-text);
+  border-bottom-color: var(--color-primary);
+}
+
+.app-nav-logout {
+  background: transparent;
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+
+.app-nav-logout:hover:not(:disabled) {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+/* Reusable inline error banner */
+.error-banner {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-danger);
+  margin: 12px 0;
+}
+
+/* Reconciliation banner (Review screen) */
+.reconciliation-banner {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  margin: 12px 0;
+}
+
+.reconciliation-ok {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+  color: var(--color-success);
+}
+
+.reconciliation-mismatch {
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+  color: var(--color-warning);
+}
+
+/* Forms */
+.login-page {
+  max-width: 360px;
+  margin: 40px auto 0;
+}
+
+.review-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 480px) {
+  .review-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+.file-input {
+  position: relative;
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  cursor: pointer;
+}
+
+.file-input input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.rotation-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.rotation-controls label {
+  flex: 1 1 200px;
+  margin-bottom: 0;
+}
+
+/* Capture crop overlay: a semi-transparent scrim outside the crop box, a
+   clearly visible dashed border, and an enlarged corner handle. */
+.capture-stage {
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+}
+
+.crop-box {
+  border: 2px dashed rgba(37, 99, 235, 0.95);
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.45);
+  box-sizing: border-box;
+  touch-action: none;
+  cursor: move;
+}
+
+.crop-handle {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  width: 16px;
+  height: 16px;
+  background: #2563eb;
+  border: 2px solid #fff;
+  border-radius: 3px;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.45);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+/* Tables: wrap in .table-scroll so wide tables don't overflow the
+   viewport on mobile; the container scrolls horizontally instead of the
+   page. */
+.table-scroll {
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 480px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+td input {
+  min-width: 70px;
+}
+
+.page-nav {
+  margin: 0 0 12px;
 }

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
+import ErrorBanner from "../components/ErrorBanner";
 
 type Mode = "login" | "register";
 
@@ -53,7 +54,7 @@ export default function LoginPage() {
             required
           />
         </label>
-        {error && <p role="alert">{error}</p>}
+        <ErrorBanner message={error} />
         <button type="submit" disabled={submitting}>
           {mode === "login" ? "Log in" : "Register"}
         </button>

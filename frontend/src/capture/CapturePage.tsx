@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { uploadReceipt } from "../api/client";
+import ErrorBanner from "../components/ErrorBanner";
 import {
   cropRectToImageCoords,
   defaultCropRect,
@@ -247,6 +248,7 @@ export default function CapturePage() {
             />
             {crop && (
               <div
+                className="crop-box"
                 data-testid="crop-box"
                 onPointerDown={handleCropPointerDown}
                 onPointerMove={handlePointerMove}
@@ -257,28 +259,14 @@ export default function CapturePage() {
                   top: crop.y,
                   width: crop.width,
                   height: crop.height,
-                  border: "2px solid #22d3ee",
-                  boxSizing: "border-box",
-                  touchAction: "none",
-                  cursor: "move",
                 }}
               >
                 <div
+                  className="crop-handle"
                   data-testid="crop-resize-handle"
                   onPointerDown={handleResizePointerDown}
                   onPointerMove={handlePointerMove}
                   onPointerUp={handlePointerUp}
-                  style={{
-                    position: "absolute",
-                    right: -7,
-                    bottom: -7,
-                    width: 14,
-                    height: 14,
-                    background: "#22d3ee",
-                    borderRadius: 2,
-                    cursor: "nwse-resize",
-                    touchAction: "none",
-                  }}
                 />
               </div>
             )}
@@ -303,7 +291,7 @@ export default function CapturePage() {
             </button>
           </div>
 
-          {error && <p role="alert">{error}</p>}
+          <ErrorBanner message={error} />
 
           <button
             type="button"
@@ -316,7 +304,7 @@ export default function CapturePage() {
         </>
       )}
 
-      {!naturalSize && error && <p role="alert">{error}</p>}
+      {!naturalSize && <ErrorBanner message={error} />}
     </div>
   );
 }
