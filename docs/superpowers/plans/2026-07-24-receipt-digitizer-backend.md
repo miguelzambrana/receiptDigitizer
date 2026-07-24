@@ -6,12 +6,12 @@
 
 **Architecture:** Sync FastAPI app. An upload endpoint stores the image and kicks off extraction in a background task (preprocess → reader → validate). The client polls for the draft, corrects it, and confirms; confirmation persists the receipt, its items, and price observations. The reader is behind a `ReceiptReader` interface so the engine is a config switch.
 
-**Tech Stack:** Python 3.10+, FastAPI, Uvicorn, SQLAlchemy 2.0 (ORM), Alembic, Pydantic v2, PostgreSQL 16 (docker-compose), psycopg 3, httpx (Ollama client), Pillow + numpy (preprocessing), pytest.
+**Tech Stack:** Python 3.10+, FastAPI, Uvicorn, SQLAlchemy 2.0 (ORM), Alembic, Pydantic v2, SQLite (file-based, local prototype), httpx (Ollama client), Pillow + numpy (preprocessing), pytest.
 
 ## Global Constraints
 
 - Python **3.10+** (target 3.10 — available on the dev machine).
-- Database is **PostgreSQL 16** via docker-compose; app connects with **psycopg 3** (`postgresql+psycopg://`).
+- Database is **SQLite** (file-based, `sqlite:///./data/receipts.db`) for the local prototype — no server, no sudo. Use portable SQLAlchemy types (generic `JSON`, not Postgres `JSONB`) so switching to Postgres later is only a connection-URL change.
 - Ollama runs at **`http://localhost:11434`**; default reader model is **`minicpm-v`**.
 - Reader engine is selected by env var **`READER_ENGINE`** (`minicpm` | `fake`); default `minicpm`.
 - All monetary values stored as **`Numeric(10,2)`**; parsing must accept comma decimals (`45,53`) and normalize to dot.
@@ -27,7 +27,7 @@
 ```
 backend/
   requirements.txt
-  docker-compose.yml            # Postgres 16
+  (no docker — SQLite file at ./data/receipts.db)
   .env.example
   alembic.ini                   # (added in Task 3)
   alembic/                      # migrations
@@ -114,7 +114,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-    database_url: str = "postgresql+psycopg://receipts:receipts@localhost:5432/receipts"
+    database_url: str = "sqlite:///./data/receipts.db"
     ollama_url: str = "http://localhost:11434"
     reader_engine: str = "minicpm"
     reader_model: str = "minicpm-v"
@@ -175,35 +175,32 @@ git commit -m "feat(backend): scaffold FastAPI app with health check"
 
 ---
 
-### Task 2: Database engine, session, docker-compose Postgres
+### Task 2: Database engine and session (SQLite)
 
 **Files:**
-- Create: `backend/docker-compose.yml`, `backend/app/db.py`
+- Create: `backend/app/db.py`
 - Modify: `backend/tests/conftest.py`
 - Test: `backend/tests/test_db.py`
 
 **Interfaces:**
 - Produces: `app.db.Base` (DeclarativeBase); `app.db.engine`; `app.db.SessionLocal`; `app.db.get_db()` (FastAPI dependency yielding a `Session`).
 
-- [ ] **Step 1: Write docker-compose.yml**
+- [ ] **Step 1: Force a separate test DB at the TOP of conftest.py (before any `from app...` import)**
 
-```yaml
-services:
-  db:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: receipts
-      POSTGRES_PASSWORD: receipts
-      POSTGRES_DB: receipts
-    ports: ["5432:5432"]
-    volumes: ["pgdata:/var/lib/postgresql/data"]
-volumes:
-  pgdata:
+The app defaults to `sqlite:///./data/receipts.db`; tests must not clobber it. `pydantic-settings` reads env at import time, so these two lines MUST be the very first lines of `tests/conftest.py`, above every existing import:
+
+```python
+# tests/conftest.py — MUST be the first two lines, above all app imports
+import os
+os.environ["DATABASE_URL"] = "sqlite:///./data/test.db"
+
+# ...existing imports (from app.main import app, the client fixture, etc.) follow unchanged...
 ```
 
 - [ ] **Step 2: Write db.py**
 
 ```python
+from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session
 from app.config import settings
@@ -211,7 +208,12 @@ from app.config import settings
 class Base(DeclarativeBase):
     pass
 
-engine = create_engine(settings.database_url, pool_pre_ping=True)
+# SQLite needs the parent dir to exist and cross-thread access (BackgroundTasks run in a thread)
+if settings.database_url.startswith("sqlite:///"):
+    Path(settings.database_url.replace("sqlite:///", "")).parent.mkdir(parents=True, exist_ok=True)
+connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
+
+engine = create_engine(settings.database_url, connect_args=connect_args)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 def get_db():
@@ -234,16 +236,16 @@ def test_db_connects():
         assert conn.execute(text("SELECT 1")).scalar() == 1
 ```
 
-- [ ] **Step 4: Start Postgres and run the test**
+- [ ] **Step 4: Run the test**
 
-Run: `cd backend && docker compose up -d db && sleep 3 && python -m pytest tests/test_db.py -v`
-Expected: PASS (connects to Postgres).
+Run: `cd backend && python -m pytest tests/test_db.py -v`
+Expected: PASS (SQLite connects; `./data/test.db` is created).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/docker-compose.yml backend/app/db.py backend/tests/test_db.py
-git commit -m "feat(backend): add Postgres and SQLAlchemy session"
+git add backend/app/db.py backend/tests/conftest.py backend/tests/test_db.py
+git commit -m "feat(backend): SQLite engine and SQLAlchemy session"
 ```
 
 ---
@@ -260,7 +262,7 @@ git commit -m "feat(backend): add Postgres and SQLAlchemy session"
   - `User(id: int, email: str unique, password_hash: str|None, created_at)`
   - `Store(id, chain_name: str, address: str|None, city: str|None, country: str|None, tax_id: str|None, created_at)`
   - `Product(id, normalized_name: str unique, display_name: str, brand: str|None, size: str|None, created_at)`
-  - `Receipt(id, user_id fk, store_id fk|None, purchased_at: datetime|None, currency: str|None, subtotal: Numeric|None, tax_amount: Numeric|None, total: Numeric|None, image_path: str, source_engine: str|None, status: str, raw_extraction: JSONB|None, created_at)` — `status` in {`processing`,`ready`,`failed`,`confirmed`}
+  - `Receipt(id, user_id fk, store_id fk|None, purchased_at: datetime|None, currency: str|None, subtotal: Numeric|None, tax_amount: Numeric|None, total: Numeric|None, image_path: str, source_engine: str|None, status: str, raw_extraction: JSON|None, created_at)` — `status` in {`processing`,`ready`,`failed`,`confirmed`}
   - `ReceiptItem(id, receipt_id fk, line_no: int, raw_name: str, product_id fk|None, quantity: Numeric|None, unit_price: Numeric|None, total_price: Numeric, is_discount: bool, tax_class: str|None)`
   - `PriceObservation(id, product_id fk, store_id fk|None, user_id fk, receipt_item_id fk, price: Numeric, currency: str|None, observed_at: datetime|None, created_at)`
 - Test fixture `db_session` (function-scoped, creates all tables via `Base.metadata.create_all`, rolls back per test).
@@ -269,8 +271,7 @@ git commit -m "feat(backend): add Postgres and SQLAlchemy session"
 
 ```python
 from datetime import datetime
-from sqlalchemy import String, Integer, ForeignKey, Numeric, Boolean, DateTime, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import String, Integer, ForeignKey, Numeric, Boolean, DateTime, JSON, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
@@ -313,7 +314,7 @@ class Receipt(Base):
     image_path: Mapped[str] = mapped_column(String)
     source_engine: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, default="processing", index=True)
-    raw_extraction: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    raw_extraction: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     items: Mapped[list["ReceiptItem"]] = relationship(cascade="all, delete-orphan")
 
