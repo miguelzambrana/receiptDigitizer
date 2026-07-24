@@ -32,13 +32,17 @@ class MiniCPMReader:
                 r.raise_for_status()
                 raw = r.json()["response"]
                 data = json.loads(raw)
-        except (httpx.HTTPError, KeyError, json.JSONDecodeError) as e:
+                return self._to_receipt(data)
+        except (httpx.HTTPError, KeyError, json.JSONDecodeError, AttributeError, TypeError) as e:
             raise ReaderError(str(e)) from e
-        return self._to_receipt(data)
 
     def _to_receipt(self, d: dict) -> ReceiptData:
+        if not isinstance(d, dict):
+            raise ReaderError(f"expected a JSON object, got {type(d).__name__}")
         items = []
         for it in d.get("items") or []:
+            if not isinstance(it, dict):
+                raise ReaderError(f"expected item to be a JSON object, got {type(it).__name__}")
             tp = normalize_number(it.get("total_price"))
             if tp is None:
                 continue

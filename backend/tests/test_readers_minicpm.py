@@ -28,3 +28,28 @@ def test_minicpm_raises_on_http_error(monkeypatch):
     monkeypatch.setattr(httpx.Client, "post", boom)
     with pytest.raises(ReaderError):
         MiniCPMReader().extract(b"img")
+
+def test_minicpm_raises_on_non_json_response(monkeypatch):
+    request = httpx.Request("POST", "http://localhost:11434/api/generate")
+    def fake_post(self, url, **kw):
+        return httpx.Response(200, json={"response": "here is your receipt: ..."}, request=request)
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+    with pytest.raises(ReaderError):
+        MiniCPMReader().extract(b"img")
+
+def test_minicpm_raises_on_top_level_array(monkeypatch):
+    request = httpx.Request("POST", "http://localhost:11434/api/generate")
+    def fake_post(self, url, **kw):
+        return httpx.Response(200, json={"response": json.dumps([{"store": "Lidl"}])}, request=request)
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+    with pytest.raises(ReaderError):
+        MiniCPMReader().extract(b"img")
+
+def test_minicpm_raises_on_items_as_strings(monkeypatch):
+    payload = {"store": "Lidl", "items": ["AGUA", "PROMO"]}
+    request = httpx.Request("POST", "http://localhost:11434/api/generate")
+    def fake_post(self, url, **kw):
+        return httpx.Response(200, json={"response": json.dumps(payload)}, request=request)
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+    with pytest.raises(ReaderError):
+        MiniCPMReader().extract(b"img")
