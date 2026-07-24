@@ -47,6 +47,26 @@ def test_confirm_is_idempotent_on_reconfirm(db_session):
     current_item_ids = {i.id for i in items}
     assert obs[0].receipt_item_id in current_item_ids
 
+def test_confirm_stores_per_unit_price_on_price_observation(db_session):
+    u = User(email="perunit@q.com"); db_session.add(u); db_session.flush()
+    r = Receipt(user_id=u.id, image_path="x.jpg", status="ready"); db_session.add(r); db_session.flush()
+    corrected = ReceiptData(
+        store="Carrefour", country="ES", currency="EUR", date_text="21/07/26", total=12.00,
+        items=[
+            ItemData(raw_name="AGUA 1.5L PACK 2", quantity=2, unit_price=None, total_price=6.00),
+            ItemData(raw_name="CERVEZA PACK 3", quantity=3, unit_price=2.00, total_price=6.00),
+        ],
+    )
+    confirm_receipt(db_session, r.id, corrected)
+    db_session.flush()
+
+    obs = db_session.execute(
+        select(PriceObservation).join(ReceiptItem).where(ReceiptItem.receipt_id == r.id).order_by(ReceiptItem.line_no)
+    ).scalars().all()
+    assert len(obs) == 2
+    assert float(obs[0].price) == 3.00
+    assert float(obs[1].price) == 2.00
+
 def test_find_or_create_store_is_idempotent(db_session):
     # same tax_id, different other fields -> same store
     s1 = find_or_create_store(db_session, chain_name="ChainA", address="Addr1",

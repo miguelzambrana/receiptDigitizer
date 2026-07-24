@@ -1,6 +1,6 @@
 import io
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 def resize_max(img: Image.Image, max_side: int) -> Image.Image:
     if max(img.size) <= max_side:
@@ -23,6 +23,7 @@ def crop_receipt(img: Image.Image) -> Image.Image:
 
 def preprocess(image_bytes: bytes, max_side: int = 1400) -> bytes:
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    img = ImageOps.exif_transpose(img)
     img = resize_max(crop_receipt(img), max_side)
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=90)

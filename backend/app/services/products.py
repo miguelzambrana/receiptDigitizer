@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.models import Product
 
 def normalize_name(raw: str) -> str:
-    s = re.sub(r"[^\w\s]", "", raw, flags=re.UNICODE)
+    s = re.sub(r"[^\w\s]", " ", raw, flags=re.UNICODE)
     return re.sub(r"\s+", " ", s).strip().upper()
 
 def find_or_create_product(db: Session, raw_name: str) -> Product:

@@ -51,8 +51,10 @@ def confirm_receipt(db: Session, receipt_id: int, corrected: ReceiptData) -> Rec
                          is_discount=item.is_discount, tax_class=item.tax_class)
         db.add(ri); db.flush()
         if product is not None:
+            unit = item.unit_price if item.unit_price is not None else (
+                item.total_price / item.quantity if item.quantity else item.total_price)
             db.add(PriceObservation(product_id=product.id, store_id=store.id, user_id=receipt.user_id,
-                                    receipt_item_id=ri.id, price=item.total_price,
+                                    receipt_item_id=ri.id, price=unit,
                                     currency=corrected.currency, observed_at=receipt.purchased_at))
     receipt.status = "confirmed"
     db.flush()
