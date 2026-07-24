@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from app.api.receipts import router as receipts_router
+from app.api.products import router as products_router
 
 app = FastAPI(title="Receipt Digitizer")
 app.include_router(receipts_router)
+app.include_router(products_router)
 
 @app.get("/health")
 def health():
